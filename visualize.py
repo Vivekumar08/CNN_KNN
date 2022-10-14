@@ -55,6 +55,7 @@ outputs = net(inputs)
 # outputs_avg_cnn = transform_test(outputs)
 # outputs_cnn = net(outputs)
 print("Outputs of pretrained model:\n",outputs)
+print(outputs.shape)
 # print("Outputs of pretrained model cnn:\n",outputs_cnn)
 
 outputs_avg = outputs.view(ncrops, -1).mean(0)  # avg over crops

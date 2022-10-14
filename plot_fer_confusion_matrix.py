@@ -5,6 +5,7 @@ plot confusion_matrix of PublicTest and PrivateTest
 import itertools
 import numpy as np
 import matplotlib.pyplot as plt
+import torch.optim as optim
 
 import torch
 import torch.nn as nn
@@ -21,6 +22,7 @@ import transforms as transforms
 from sklearn.metrics import confusion_matrix
 from models import *
 
+use_cuda = False
 
 parser = argparse.ArgumentParser(description='PyTorch Fer2013 CNN Training')
 parser.add_argument('--model', type=str, default='VGG19', help='CNN architecture')
@@ -84,10 +86,12 @@ path = os.path.join(opt.dataset + '_' + opt.model)
 checkpoint = torch.load(os.path.join(path, opt.split + '_model.t7'))
 
 net.load_state_dict(checkpoint['net'])
-net.cuda()
+if use_cuda:
+    net.cuda()
 net.eval()
 Testset = FER2013(split = opt.split, transform=transform_test)
 Testloader = torch.utils.data.DataLoader(Testset, batch_size=128, shuffle=False, num_workers=0)
+# optimizer = optim.SGD(net.parameters(), lr=opt.lr, momentum=0.9, weight_decay=5e-4)
 correct = 0
 total = 0
 all_target = []
@@ -95,22 +99,24 @@ for batch_idx, (inputs, targets) in enumerate(Testloader):
 
     bs, ncrops, c, h, w = np.shape(inputs)
     inputs = inputs.view(-1, c, h, w)
-    if torch.cuda.is_available():
+    # if torch.cuda.is_available():
+    if use_cuda:
         inputs, targets = inputs.cuda(), targets.cuda()
-        inputs, targets = Variable(inputs, volatile=True), Variable(targets)
-        outputs = net(inputs)
+    # optimizer.zero_grad()
+    inputs, targets = Variable(inputs), Variable(targets)
+    outputs = net(inputs)
 
-        outputs_avg = outputs.view(bs, ncrops, -1).mean(1)  # avg over crops
-        _, predicted = torch.max(outputs_avg.data, 1)
+    outputs_avg = outputs.view(bs, ncrops, -1).mean(1)  # avg over crops
+    _, predicted = torch.max(outputs_avg.data, 1)
 
-        total += targets.size(0)
-        correct += predicted.eq(targets.data).cpu().sum()
-        if batch_idx == 0:
-            all_predicted = predicted
-            all_targets = targets
-        else:
-            all_predicted = torch.cat((all_predicted, predicted),0)
-            all_targets = torch.cat((all_targets, targets),0)
+    total += targets.size(0)
+    correct += predicted.eq(targets.data).cpu().sum()
+    if batch_idx == 0:
+        all_predicted = predicted
+        all_targets = targets
+    else:
+        all_predicted = torch.cat((all_predicted, predicted),0)
+        all_targets = torch.cat((all_targets, targets),0)
 
 acc = 100. * correct / total
 print("accuracy: %0.3f" % acc)

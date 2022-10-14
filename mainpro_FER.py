@@ -27,6 +27,7 @@ parser.add_argument('--resume', '-r', action='store_true', help='resume from che
 opt = parser.parse_args()
 
 use_cuda = torch.cuda.is_available()
+use_cuda = False
 best_PublicTest_acc = 0  # best PublicTest accuracy
 best_PublicTest_acc_epoch = 0
 best_PrivateTest_acc = 0  # best PrivateTest accuracy
@@ -38,8 +39,7 @@ learning_rate_decay_every = 5 # 5
 learning_rate_decay_rate = 0.9 # 0.9
 
 cut_size = 44
-# total_epoch = 250
-total_epoch = 1
+total_epoch = 2
 
 path = os.path.join(opt.dataset + '_' + opt.model)
 
@@ -68,24 +68,24 @@ PrivateTestloader = torch.utils.data.DataLoader(PrivateTestset, batch_size=opt.b
 
 # Model
 if opt.model == 'VGG19':
-    net = VGG('VGG19')
+    net = VGG('VGG11')
 elif opt.model  == 'Resnet18':
     net = ResNet18()
 
-if opt.resume:
-    # Load checkpoint.
-    print('==> Resuming from checkpoint..')
-    assert os.path.isdir(path), 'Error: no checkpoint directory found!'
-    checkpoint = torch.load(os.path.join(path,'PrivateTest_model.t7'))
+# if opt.resume:
+#     # Load checkpoint.
+#     print('==> Resuming from checkpoint..')
+#     assert os.path.isdir(path), 'Error: no checkpoint directory found!'
+#     checkpoint = torch.load(os.path.join(path,'PrivateTest_model.t7'))
 
-    net.load_state_dict(checkpoint['net'])
-    best_PublicTest_acc = checkpoint['best_PublicTest_acc']
-    best_PrivateTest_acc = checkpoint['best_PrivateTest_acc']
-    best_PrivateTest_acc_epoch = checkpoint['best_PublicTest_acc_epoch']
-    best_PrivateTest_acc_epoch = checkpoint['best_PrivateTest_acc_epoch']
-    start_epoch = checkpoint['best_PrivateTest_acc_epoch'] + 1
-else:
-    print('==> Building model..')
+#     net.load_state_dict(checkpoint['net'])
+#     best_PublicTest_acc = checkpoint['best_PublicTest_acc']
+#     best_PrivateTest_acc = checkpoint['best_PrivateTest_acc']
+#     best_PrivateTest_acc_epoch = checkpoint['best_PublicTest_acc_epoch']
+#     best_PrivateTest_acc_epoch = checkpoint['best_PrivateTest_acc_epoch']
+#     start_epoch = checkpoint['best_PrivateTest_acc_epoch'] + 1
+# else:
+print('==> Building model..')
 
 if use_cuda:
     net.cuda()
@@ -124,6 +124,8 @@ def train(epoch):
         train_loss += loss
         # train_loss += loss.data[0]
         _, predicted = torch.max(outputs.data, 1)
+        print("Outputs: ",outputs)
+        print("Outputs: ",predicted)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
@@ -149,7 +151,7 @@ def PublicTest(epoch):
         outputs = net(inputs)
         outputs_avg = outputs.view(bs, ncrops, -1).mean(1)  # avg over crops
         loss = criterion(outputs_avg, targets)
-        PublicTest_loss += loss.data[0]
+        PublicTest_loss += loss.data
         _, predicted = torch.max(outputs_avg.data, 1)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
@@ -190,7 +192,7 @@ def PrivateTest(epoch):
         outputs = net(inputs)
         outputs_avg = outputs.view(bs, ncrops, -1).mean(1)  # avg over crops
         loss = criterion(outputs_avg, targets)
-        PrivateTest_loss += loss.data[0]
+        PrivateTest_loss += loss.data
         _, predicted = torch.max(outputs_avg.data, 1)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
